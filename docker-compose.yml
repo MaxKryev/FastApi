@@ -1,0 +1,59 @@
+services:
+  web:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - rabbit
+    environment:
+      DATABASE_URL: postgres://main_admin:qwerty123@db:5432/docs
+    command: >
+        sh -c "alembic upgrade head && uvicorn application.main:app --host 0.0.0.0 --port 8000"
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  celery:
+    build: .
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - rabbit
+    environment:
+      DATABASE_URL: postgres://main_admin:qwerty123@db:5432/docs
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+    command: celery -A application.tasks worker --loglevel=info
+
+  rabbit:
+    image: rabbitmq:3-management
+    ports:
+      - "5674:5672"
+      - "15674:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
