@@ -86,4 +86,4 @@
 ├── Dockerfile                # Dockerfile для приложения
 ├── pytest.ini                # Файл инициализации тестов
 ├── README.md                 # Этот файл
-└── requirements.txt          # Список зависимостей
+└── requirements.txt          # Список зависимостей# FastApi
