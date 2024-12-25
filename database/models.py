@@ -4,6 +4,7 @@ from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
 
 Base = declarative_base()
 
+
 """Модели базы данных"""
 
 class Document(Base):

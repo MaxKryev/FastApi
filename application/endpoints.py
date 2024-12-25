@@ -1,4 +1,7 @@
 import os
+import logging
+from pathlib import Path
+
 import aiofiles
 from typing import Annotated, List, LiteralString
 from fastapi import Query, HTTPException, UploadFile, File, APIRouter
@@ -11,11 +14,16 @@ from database.models import Document, DocumentText
 from application.tasks import analyse_document
 from database.sessions import SessionDep
 
+
+"""Логирование"""
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+
 """Создание директории для хранения файла"""
 
-upload_dir = "./documents"
+upload_dir = os.path.join(Path(__file__).parent.parent, "documents")
 os.makedirs(upload_dir, exist_ok=True)
-
 
 """Создание пути для endpoints"""
 router = APIRouter(prefix="/documents")
@@ -91,12 +99,15 @@ async def delete_doc(doc_id: int, session: SessionDep) -> JSONResponse:
 def validate_file(file: UploadFile):
     """Валидация формата файла"""
     correct_formats = ["image/png", "image/jpeg", "image/gif"]
+    logger.info(file)
+
     if file.content_type not in correct_formats:
         raise HTTPException(status_code=400, detail="Incorrect file format")
 
 def get_unique_filename(file: UploadFile) -> str:
     """Присвоение файлу уникального имени"""
     file_format = file.filename.split(".")[-1]
+
     return f"{uuid4()}.{file_format}"
 
 async def save_document_to_db(session: AsyncSession, file_name: str) -> int:
@@ -119,8 +130,9 @@ async def upload_doc(session: SessionDep, file: UploadFile=File(...)) -> JSONRes
     validate_file(file)
     file_name = get_unique_filename(file)
     file_path = os.path.join(upload_dir, file_name)
-    document_id = await save_document_to_db(session, file_name)
+
     await save_document_to_disk(file, file_path)
+    document_id = await save_document_to_db(session, file_name)
     return JSONResponse({"id": document_id,"name": file_name,"message": "Document uploaded successfully"})
 
 
@@ -147,9 +159,9 @@ async def doc_analyse(doc_id: int, session: SessionDep) -> JSONResponse:
 
 """Endpoint на получение текста по id документа"""
 
-async def get_document_text(session: AsyncSession, document_id: int):
+async def get_document_text(session: AsyncSession, doc_id: int):
     """Получение документа из БД document_text"""
-    res_search_db_doc_text = await session.execute(select(DocumentText).where(DocumentText.id_doc == document_id))
+    res_search_db_doc_text = await session.execute(select(DocumentText).where(DocumentText.id_doc == doc_id))
     return res_search_db_doc_text.scalars().first()
 
 def text_not_found(document_text):
@@ -157,8 +169,8 @@ def text_not_found(document_text):
     if document_text is None:
         raise HTTPException(status_code=404, detail="Text not found for id")
 
-@router.get("/read_doc_text/{document_id}", tags=["Read data"])
-async def get_text(document_id: int, session: SessionDep) -> JSONResponse:
-    document_text = await get_document_text(session, document_id)
+@router.get("/read_doc_text/{doc_id}", tags=["Read data"])
+async def get_text(doc_id: int, session: SessionDep) -> JSONResponse:
+    document_text = await get_document_text(session, doc_id)
     text_not_found(document_text)
-    return JSONResponse({"document_id": document_id, "text": document_text.text})
+    return JSONResponse({"doc_id": doc_id, "text": document_text.text})

@@ -1,6 +1,9 @@
 import os
+
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from dotenv import load_dotenv
+from sqlalchemy.orm import sessionmaker
 
 """Параметры для подключения к БД"""
 
@@ -25,6 +28,18 @@ async_engine = create_async_engine(
 )
 
 async_session = async_sessionmaker(bind=async_engine, expire_on_commit=False)
+
+
+"""Создание синхронного движка для фоновой задачи"""
+
+engine = create_engine(
+    url=f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}",
+    echo=False,
+    pool_size=10,
+    max_overflow=15
+)
+
+session = sessionmaker(bind=engine, expire_on_commit=False)
 
 
 """Создание асинхронного движка для тестовой БД"""
